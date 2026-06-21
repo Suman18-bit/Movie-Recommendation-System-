@@ -1,35 +1,53 @@
 # Movie-Recommendation-System-
-### `recommendation(title, n=7)` Function: A Comprehensive Overview
+%%writefile README.md
+# 🎬 Movie Matcher: AI-Powered Recommendation Engine
 
-This function is designed to provide content-based movie recommendations. Given a movie title, it identifies and suggests other movies that are most similar in terms of their content attributes.
+[![Python](https://img.shields.io/badge/Python-3.7%2B-blue?style=for-the-badge&logo=python)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-App-FF4B4B?style=for-the-badge&logo=streamlit)](https://streamlit.io/)
+[![ML](https://img.shields.io/badge/Machine%20Learning-Scikit--Learn-F7931E?style=for-the-badge&logo=scikit-learn)](https://scikit-learn.org/)
 
-**How it Works:**
+An advanced content-based recommendation system that leverages **Natural Language Processing (NLP)** and **Cosine Similarity** to suggest movies based on plot depth, genre overlap, and thematic taglines.
 
-1.  **Input Movie Identification:**
-    *   It first checks if the provided `title` exists in the `Indices` Series, which maps movie titles to their corresponding numerical indices in the DataFrame. If the movie is not found, it immediately returns a 'Movie not found' message.
+## 🌟 Key Features
 
-2.  **TF-IDF Vectorization:**
-    *   The core of the similarity calculation relies on `Tfidf_metrix`, which is a Term Frequency-Inverse Document Frequency (TF-IDF) representation of each movie's `combined_features`. The `combined_features` for each movie were created by concatenating and preprocessing its `title`, `genres`, and `tagline`.
-    *   TF-IDF is a numerical statistic that reflects how important a word is to a document in a collection or corpus. It increases proportionally to the number of times a word appears in the document but is offset by the frequency of the word in the corpus, which helps to adjust for the fact that some words appear more frequently in general.
+- **🎯 Precision Matching**: Uses TF-IDF (Term Frequency-Inverse Document Frequency) with n-gram ranges (1-3) to capture contextual meaning.
+- **⚡ Real-time Discovery**: Instantaneous similarity calculation across thousands of titles.
+- **🎨 Modern Dashboard**: Interactive UI featuring movie selection and instant recommendation lists.
+- **🧹 Automated Pipeline**: Full text preprocessing including Lemmatization, Stemming, and Stop-word removal.
 
-3.  **Cosine Similarity Calculation:**
-    *   Once the input movie's index (`idx`) is identified, the function retrieves its TF-IDF vector from `Tfidf_metrix[idx]`.
-    *   It then computes the `cosine_similarity` between this vector and all other movie vectors in `Tfidf_metrix`. Cosine similarity measures the cosine of the angle between two non-zero vectors in a multi-dimensional space. A higher cosine similarity (closer to 1) indicates greater similarity between the movie contents.
-    *   The `.flatten()` method is used to convert the 2D similarity matrix (which would be 1xN for a single input movie) into a 1D array of similarity scores.
+## 🛠️ Technical Architecture
 
-4.  **Ranking and Selection:**
-    *   The `argsort()` method is applied to these similarity `score`s to get the indices that would sort the scores in ascending order. By using `[::-1]`, these indices are reversed to get the sorting order for descending similarity (most similar first).
-    *   The `[0:n+1]` slicing selects the top `n+1` indices. This includes the input movie itself (which will have a similarity of 1 with itself), plus `n` other most similar movies.
+### **1. Data Preprocessing**
+- Handling missing values and malformed CSV rows.
+- Feature Engineering: Merging `Title`, `Genres`, and `Taglines` into a unified 'Content DNA'.
+- Standard Scaling of popularity and voting metrics.
 
-5.  **Output:**
-    *   Finally, it returns the `title`s from the `df` DataFrame corresponding to these top `n` similar movie indices (excluding the input movie itself if `n` refers to the number of *other* movies).
+### **2. NLP & Vectorization**
+- **Tokenizer**: Custom NLTK-based cleaning (punctuation/emoji removal).
+- **Vector Space**: Transformation of text into high-dimensional TF-IDF vectors.
 
-**Parameters:**
+### **3. Similarity Metric**
+- Implementation of **Cosine Similarity** to calculate the distance between movie vectors in the latent space.
 
-*   `title` (str): The exact title of the movie for which recommendations are desired. This title must exist in the `useFull_df['title']` column.
-*   `n` (int, optional): The number of similar movies to return. The default value is 7.
+## 🚀 Installation & Deployment
 
-**Returns:**
+### Prerequisites
+```bash
+pip install streamlit pandas scikit-learn nltk
+```
 
-*   A Pandas Series containing the titles of the `n` most recommended movies.
-*   If the `title` is not found in the dataset, it returns a list containing the string `"Movie not found"`.
+### Running the Application
+1. Generate the data artifacts:
+   ```bash
+   python preprocess.py  # or run the notebook cells
+   ```
+2. Launch the Streamlit server:
+   ```bash
+   streamlit run app.py
+   ```
+
+## 📸 Application Preview
+The app allows users to select a movie from a searchable dropdown and instantly displays the top 7 most similar films with their calculated relevance.
+
+---
+*Built with precision for movie enthusiasts.*
