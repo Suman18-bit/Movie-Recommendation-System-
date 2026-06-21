@@ -1,5 +1,5 @@
 # Movie-Recommendation-System-
-%%writefile README.md
+
 # 🎬 Movie Matcher: AI-Powered Recommendation Engine
 
 [![Python](https://img.shields.io/badge/Python-3.7%2B-blue?style=for-the-badge&logo=python)](https://www.python.org/)
