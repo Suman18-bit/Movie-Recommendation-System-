@@ -24,13 +24,26 @@ st.set_page_config(
 # ─────────────────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
 def boot_engine():
-    load_data()                 # warms logic.py's internal cache
-    return engine_stats()
+    """Warms logic.py's cache and returns (stats, titles) together.
+
+    Bundling both into one cached call means there's a single load
+    path on cold start — previously boot_engine() and boot_titles()
+    were separate @st.cache_resource / @st.cache_data functions that
+    could each independently trigger logic.load_data() before either
+    finished, since Streamlit's resource and data caches don't share
+    a lock across two different cached functions.
+    """
+    load_data()
+    return engine_stats(), all_titles()
 
 
-@st.cache_data(show_spinner=False)
-def boot_titles():
-    return all_titles()
+@st.cache_data(show_spinner=False, max_entries=256)
+def cached_recommendations(title: str, n: int):
+    """Caches identical (title, n) lookups so repeat requests skip
+    the cosine-similarity pass entirely. Same get_recommendations()
+    call and return shape as before — this is purely a memo layer.
+    """
+    return get_recommendations(title, n=n)
 
 
 def hue(s: str) -> int:
@@ -241,8 +254,7 @@ st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)
 # Boot or fail gracefully
 # ─────────────────────────────────────────────────────────────
 try:
-    stats = boot_engine()
-    movie_titles = boot_titles()
+    stats, movie_titles = boot_engine()
 except FileNotFoundError as err:
     st.markdown(
         f"""
@@ -266,8 +278,15 @@ with st.sidebar:
     st.markdown('<div class="rm-side-brand">REEL<span>MATCH</span></div>', unsafe_allow_html=True)
 
     st.markdown('<p class="rm-side-label">PROJECTION CONTROLS</p>', unsafe_allow_html=True)
-    count = st.select_slider("PICKS PER REEL", options=[5, 7, 10], value=7,
-                             help="How many kindred spirits to project.")
+    # Cap the slider's ceiling at what the archive can actually return
+    # (n neighbours excludes the query film itself, so max is movies-1).
+    slider_opts = [v for v in (5, 7, 10) if v <= max(stats["movies"] - 1, 1)] or [1]
+    count = st.select_slider(
+        "PICKS PER REEL",
+        options=slider_opts,
+        value=slider_opts[min(1, len(slider_opts) - 1)],
+        help="How many kindred spirits to project.",
+    )
 
     st.markdown('<p class="rm-side-label">TRY A REEL</p>', unsafe_allow_html=True)
     side_cols = st.columns(2)
@@ -318,14 +337,30 @@ def card_html(i: int, r: dict, top: float) -> str:
     </article>"""
 
 
+def reel_spinner(fast: bool = False) -> str:
+    label = "Projector actively searching" if fast else "Projector idle"
+    return f'<span class="rm-reel{" fast" if fast else ""}" role="img" aria-label="{label}"></span>'
+
+
 def screen_shell(head_text: str, inner_html: str, fast: bool = False) -> str:
     return f"""
     <div class="rm-screen-head">
       <span class="rm-stamped">{head_text}</span>
-      <span class="rm-reel{' fast' if fast else ''}"></span>
+      {reel_spinner(fast)}
     </div>
     <div class="rm-screen"><div class="rm-frame">{inner_html}</div></div>
     """
+
+
+def notfound_shell(stamp: str, message: str) -> str:
+    """Shared markup for both the boot-time failure screen and an
+    in-app 'title not found' result — previously duplicated inline
+    in two places with the same structure.
+    """
+    return (
+        f'<div class="rm-notfound"><div class="rm-stamp-x">{html.escape(stamp)}</div>'
+        f"<p>{html.escape(message)}</p></div>"
+    )
 
 
 LEADER = """
@@ -381,7 +416,7 @@ if submitted:
     else:
         with st.spinner("THREADING FILM…"):
             t0 = time.perf_counter()
-            recs = get_recommendations(pick, n=count)
+            recs = cached_recommendations(pick, count)
             ms = round((time.perf_counter() - t0) * 1000)
         if recs and "error" in recs[0]:
             st.session_state["last_error"] = (
@@ -411,10 +446,7 @@ if last:
     )
 elif err:
     st.markdown(
-        screen_shell(
-            "NOW SHOWING — REEL NOT FOUND",
-            f'<div class="rm-notfound"><div class="rm-stamp-x">REEL NOT FOUND</div><p>{html.escape(err)}</p></div>',
-        ),
+        screen_shell("NOW SHOWING — REEL NOT FOUND", notfound_shell("REEL NOT FOUND", err)),
         unsafe_allow_html=True,
     )
 else:
